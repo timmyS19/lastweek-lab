@@ -1,0 +1,64 @@
+
+
+
+
+LAST WEEK REPORT 2026-11-23 15:32 timven
+Names: Timothee Simard, Venizar Iankov
+R1 flask 3.1.3 | paho-mqtt 2.2.0
+R2 GET /     -> 200
+R3 GET /nope -> 404
+R4 network address, before -> 000
+R3 GET /nope -> 404
+R4 network address, before -> 000
+R5 network address, after  -> 200
+R6 5000/tcp                   ALLOW       Anywhere                  
+R6 5000/tcp (v6)              ALLOW       Anywhere (v6)             
+R7 /          is text/html; charset=utf-8
+R8 /api/light is application/json
+R9 {"pct":50.2,"station":"s01","status":"online","updated":"15:39:56"}
+R9 {"pct":49.8,"station":"s01","status":"online","updated":"15:39:59"}
+R10 node stopped: {"pct":50.2,"station":"s01","status":"online","updated":"15:40:14"}
+R11 {"ok":true,"sp":30.0}
+R12 GET /api/setpoint -> 405
+Last Week check 2026-11-23 15:42:46 host timven
+ 1 PASS  page answers on localhost                  200 text/html
+ 2 PASS  page answers on 192.168.0.110              200
+ 3 PASS  /api/light answers with JSON               200 application/json
+ 4 PASS  unknown path /nope is refused              404
+ 5 PASS  readings are live (two reads, 3 s apart)   30.1 -> 29.7  status online
+ 6 PASS  GET /api/setpoint is refused               405
+ 7 PASS  POST sp=70 reaches bench/s01/cmd           200 heard ['sp:70']
+ 8 PASS  reading follows the setpoint (29.7 -> 70)  within 3 points after 6 s
+RESULT 8/8  station s01  host timven  2026-11-23 15:42
+W1 One Set press, hop by hop, from browser back to browser:
+
+W2 Why does the dict "latest" exist? One sentence:
+
+W3 How old can the number on the page be, in seconds, and why:
+
+
+W1 : Trace one Set press, hop by hop, from browser back to browser.
+When We type 70 in the Target box and press Set, the browser sends a POST to
+/api/setpoint with sp=70. Flask checks that it's a number, keeps it between 0
+and 100 and sends back {"ok": true, "sp": 70.0}. That reply only
+means that the server got it, not that the light moved. Then Flask publishes
+sp:70 on bench/s01/cmd to the broker. The broker sends it to the node because
+the node signed up for that topic. The node starts moving the light toward 70
+and keeps publishing the new level on bench/s01/light every second. That goes
+back through the broker to Flask, where on_message saves it in latest["pct"]
+with the time. Then the page asks /api/light every 2 seconds, gets the dict
+back as JSON and updates the number. So that's when we actually see it go up
+to 70 in the browser.
+
+W2 : Why does the latest dict exist? One sentence.
+The node sends readings on its own timing and the browser asks on a different
+timing, so latest is like a mailbox where MQTT drops off the newest value and
+Flask can grab it right away instead of waiting for the next message.
+
+W3 : How old can the number on the page be, in seconds, and why?
+About 3 seconds at most. The node only publishes every 1 second, so the value
+in latest can already be 1 second old when the page asks for it. Then the page
+only refreshes every 2 seconds, so that number can stay on the screen for 2
+more seconds. So 1 + 2 gives 3 seconds in the worst case. That's fine
+for someone looking at the dashboard, but it would be too slow for a control
+loop.
