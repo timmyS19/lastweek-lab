@@ -1,0 +1,8 @@
+D22112 
+Pi5 1gb ram
+Boot FS
+Timothee Venizar
+
+
+
+Github : https://github.com/timmyS19/lastweek-lab.git
